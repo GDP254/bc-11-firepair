@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Firebase Chat</title>
+  <link rel="icon" href="data:;base64,iVBORw0KGgo=">
+  <!-- Firebase -->
+  <script src='https://www.gstatic.com/firebasejs/3.5.3/firebase.js'></script>
+
+    <!-- CodeMirror -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.17.0/codemirror.js"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.17.0/codemirror.css" />
+
+  <!-- Firepad -->
+  <link rel="stylesheet" href="https://cdn.firebase.com/libs/firepad/1.4.0/firepad.css" />
+  <script src="https://cdn.firebase.com/libs/firepad/1.4.0/firepad.min.js"></script>
+   <style>
+    body {
+      font-family: 'HelveticaNeue-Light';
+    }
+    .msg {
+      margin: 10px 0;
+      padding: 10px;
+      width: 400px;
+      background-color: #efefef;
+    }
+    #username, #text {
+      margin: 5px 0px;
+    }
+    #post {
+      padding: 0.5em 1em;
+      background-color: #50b1ff;
+      border: none;
+      color: #FFF;
+    }
+    #login {
+      padding: 0.5em 1em;
+      background-color: #DD4B39;
+      border: none;
+      color: #FFF;
+      cursor: pointer;
+    }
+
+    .firepad {
+        width: 700px;
+        height: 450px;
+        background-color: #f62; /* dark orange background */
+      }
+
+      /* Note: CodeMirror applies its own styles which can be customized in the same way.
+         To apply a background to the entire editor, we need to also apply it to CodeMirror. */
+      .CodeMirror {
+        background-color: #f62;
+      }
+  </style>
+</head>
+<body>
+  <button id="login">Login with Google</button><br/><br/>
+
+  <input id="session" type="text" placeholder="Session Name"><br/>
+  <button id="create_session">Create Session</button><br/>
+
+  <input id="text" type="text" placeholder="Message"><br/>
+  <button id="post">Post</button><br/>
+
+  <div id="sessions"></div>
+  <div id="results"></div>
+  <div class="firepad CodeMirror" id="firepad"></div>
+  <script>
+    var usernameInput = document.querySelector('#username');
+    var textInput = document.querySelector('#text');
+    var postButton = document.querySelector('#post');
+    var firePadInput = document.querySelector('#firepad');
+    var sessionInput = document.querySelector('#session');
+    var sessionButton = document.querySelector('#create_session');
+
+
+    var username = null;
+    var email = null;
+    var uid = null;
+    var photourl = null;
+    var session_id = null;
+    var loginButton = document.querySelector('#login');
+
+
+    postButton.style.display = "none";
+    textInput.style.display = "none";
+
+    firePadInput.style.display = "none";
+
+    sessionButton.style.display = "none";
+    sessionInput.style.display = "none";
+
+    //var myFirebase = new Firebase('https://stvnkrs-apps.firebaseio.com/');
+    var config = {
+      apiKey: "AIzaSyDfq6mHKGmi-M4YFxSIwkeVD2pIzqYfVt4",
+      authDomain: "stvnkrs-apps.firebaseapp.com",
+      databaseURL: "https://stvnkrs-apps.firebaseio.com",
+      storageBucket: "stvnkrs-apps.appspot.com",
+      //messagingSenderId: "825452721952"
+    };
+    firebase.initializeApp(config);
+
+    
+
+    sessionButton.addEventListener("click", function() {
+      var sessionName = sessionInput.value;
+      var sessionOwner = username;
+      // A post entry.
+      var postData = {
+        name: sessionName,
+        ownername: sessionOwner,
+        owneruid: uid,
+        owneremail: email,
+        ownerphoto: photourl,
+        group: "Empty"
+      };
+      
+      // Get a key for a new Post.
+      var newSessionKey = firebase.database().ref().child('sessions').push().key;
+
+      // Write the new post's data simultaneously in the posts list and the user's post list.
+      var updates = {};
+      updates['/sessions/' + newSessionKey] = postData;
+
+      var promise = firebase.database().ref().update(updates);
+      sessionInput.value = "";
+      console.log(promise)
+
+    });
+
+    /** Function to add a data listener **/
+    var startListeningForChats = function() {
+      firebase.database().ref('sessions/'+session_id+'/post/').orderByKey().limitToLast(4).on('value', function(snapshot) {
+
+        //clear list before filling it again
+        document.getElementById("results").innerHTML = "";
+        snapshot.forEach(function(childSnapshot) {
+          var msg = childSnapshot.val();
+          console.log(msg)
+
+          var msgUsernameElement = document.createElement("b");
+          msgUsernameElement.textContent = msg.username;
+          
+          var msgTextElement = document.createElement("p");
+          msgTextElement.textContent = msg.text;
+    
+          var msgElement = document.createElement("div");
+          msgElement.className = "msg";
+          msgElement.appendChild(msgUsernameElement);
+          msgElement.appendChild(msgTextElement);
+
+          document.getElementById("results").appendChild(msgElement);
+
+        });
+      });
+      
+    }
+
+    /** Function to add a data listener **/
+    var startListeningForSessions = function() {
+      firebase.database().ref('sessions/').orderByKey().limitToLast(4).on('value', function(snapshot) {
+
+        //clear list before filling it again
+        document.getElementById("sessions").innerHTML = "";
+
+        snapshot.forEach(function(childSnapshot) {
+          var msg = childSnapshot.val();
+          console.log(msg)
+
+          var msgUsernameElement = document.createElement("b");
+          msgUsernameElement.textContent = msg.name;
+          
+          var msgTextElement = document.createElement("p");
+          msgTextElement.textContent = msg.group;
+
+          // 1. Create the button
+          var msgButton = document.createElement("button");
+          msgButton.innerHTML = "View Session";
+
+          // 2. Append somewhere
+          var body = document.getElementsByTagName("body")[0];
+          body.appendChild(msgButton);
+
+          // 3. Add event handler
+          msgButton.addEventListener ("click", function() {
+            //View chat and pad that specifically update the current session
+            //set variable with the current session id
+            session_id = childSnapshot.getKey();
+            
+            //show chat and pad
+            postButton.style.display = "block";
+            textInput.style.display = "block";
+            firePadInput.style.display = "block";
+
+            //Start listening to relevant info
+            startListeningForChats();
+
+            /*** FIREPAD INIT ***/
+            // Get Firebase Database reference.
+            var firepadRef = firebase.database().ref('sessions/'+session_id+'/code/');
+
+            //clear firepad
+            document.getElementById("firepad").innerHTML = "";
+
+            // Create CodeMirror (with lineWrapping on).
+            var codeMirror = CodeMirror(document.getElementById('firepad'), {
+                lineNumbers: true,
+                mode: 'javascript'
+              });
+
+            // Create Firepad (with rich text toolbar and shortcuts enabled).
+            var firepad = Firepad.fromCodeMirror(firepadRef, codeMirror, {
+                //richTextShortcuts: true,
+                //richTextToolbar: true,
+                //defaultText: 'Hello, World!'
+              });
+          });
+    
+          var msgElement = document.createElement("div");
+          msgElement.className = "msg";
+          msgElement.appendChild(msgUsernameElement);
+          msgElement.appendChild(msgTextElement);
+          msgElement.appendChild(msgButton);
+
+          document.getElementById("sessions").appendChild(msgElement);
+
+        });
+      });
+      //Add listener to the posting of chats
+            postButton.addEventListener("click", function() {
+              alert("Comment Posted");
+              var msgUser = username;
+              var msgText = textInput.value;
+              // A post entry.
+              var postData = {
+                username: msgUser,
+                text: msgText,
+              };
+              
+              // Get a key for a new Post.
+              var newPostKey = firebase.database().ref('sessions/'+session_id).child('post').push().key;
+
+              // Write the new post's data simultaneously in the posts list and the user's post list.
+              var updates = {};
+              updates['/post/' + newPostKey] = postData;
+
+              var promise = firebase.database().ref('sessions/'+session_id).update(updates);
+              textInput.value = "";
+              console.log(promise)
+            });
+    }
+
+    loginButton.addEventListener("click", function() {
+      /*New Implementaion of google sign in*/
+      var provider = new firebase.auth.GoogleAuthProvider();
+      firebase.auth().signInWithPopup(provider).then(function(result) {
+        // This gives you a Google Access Token. You can use it to access the Google API.
+        //var token = result.credential.accessToken;
+        // The signed-in user info.
+        var user = result.user;
+        console.log(result);
+        username = result.user.displayName;
+        email = result.user.email;
+        uid =  result.user.uid;
+        photourl = result.user.photoURL;
+
+        loginButton.textContent = "Logged in as " + username;
+        loginButton.disabled = true;
+
+        //show session creation functionality first
+        sessionButton.style.display = "block";
+        sessionInput.style.display = "block";
+
+        /* Do not show code and chat yet.
+        postButton.style.display = "block";
+        textInput.style.display = "block";
+        firePadInput.style.display = "block";
+        */
+
+        // Start listening for data
+        startListeningForSessions();
+        // ...
+      }).catch(function(error) {
+        // Handle Errors here.
+        var errorCode = error.code;
+        var errorMessage = error.message;
+        console.log(error);
+        // The email of the user's account used.
+        var email = error.email;
+        // The firebase.auth.AuthCredential type that was used.
+        var credential = error.credential;
+        // ...
+      });
+    });
+
+  </script>
+</body>
+</html>
