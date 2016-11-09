@@ -229,8 +229,8 @@
           msgButton.innerHTML = "View Session";
 
           // 2. Append somewhere
-          var body = document.getElementsByTagName("body")[0];
-          body.appendChild(msgButton);
+          //var body = document.getElementsByTagName("body")[0];
+          //body.appendChild(msgButton);
 
           // 3. Add event handler
           msgButton.addEventListener ("click", function() {
@@ -266,6 +266,29 @@
                 //defaultText: 'Hello, World!'
               });
           });
+          
+          // 1. Create the button
+          var delButton = document.createElement("button");
+          delButton.innerHTML = "Delete";
+
+          // 3. Add event handler
+          delButton.addEventListener ("click", function() {
+            //View chat and pad that specifically update the current session
+            //set variable with the current session id
+            session_id = childSnapshot.getKey();
+            
+            //clear firepad
+            document.getElementById("firepad").innerHTML = "";
+            //clear chats
+            document.getElementById("results").innerHTML = "";
+            //show chat and pad
+            postButton.style.display = "none";
+            textInput.style.display = "none";
+            firePadInput.style.display = "none";
+
+            var promise = firebase.database().ref(uid+'/sessions/').child(session_id).remove();
+            console.log(promise)
+          });
     
           var msgElement = document.createElement("div");
           msgElement.className = "msg";
@@ -273,6 +296,7 @@
           msgElement.appendChild(msgTextElement);
           msgElement.appendChild(msgshareTextElement);
           msgElement.appendChild(msgButton);
+          msgElement.appendChild(delButton);
 
           document.getElementById("sessions").appendChild(msgElement);
 
