@@ -221,6 +221,9 @@
           var msgTextElement = document.createElement("p");
           msgTextElement.textContent = msg.group.email;
 
+          var msgshareTextElement = document.createElement("p");
+          msgshareTextElement.textContent = "Share the following secret link to invite people to this session: \n"+window.location+"?u="+uid+"&s="+childSnapshot.getKey();
+
           // 1. Create the button
           var msgButton = document.createElement("button");
           msgButton.innerHTML = "View Session";
@@ -268,6 +271,7 @@
           msgElement.className = "msg";
           msgElement.appendChild(msgUsernameElement);
           msgElement.appendChild(msgTextElement);
+          msgElement.appendChild(msgshareTextElement);
           msgElement.appendChild(msgButton);
 
           document.getElementById("sessions").appendChild(msgElement);
