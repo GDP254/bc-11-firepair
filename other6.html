@@ -11,7 +11,7 @@
   <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap-theme.min.css" integrity="sha384-rHyoN1iRsVXV4nD0JutlnGaslCJuC7uwjduW9SVrLvRYooPp2bWYgmgJQIXwl/Sp" crossorigin="anonymous">
 
   <!--Jquery -->
-  <script src="http://code.jquery.com/jquery-3.1.1.js"></script>
+  <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.1.0/jquery.min.js"></script>
 
   <!-- Latest compiled and minified JavaScript -->
   <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js" integrity="sha384-Tc5IQib027qvyjSMfHjOMaLkfuWVxZxUPnCJA7l2mCWNIpG9mGCD8wGNIcPD7Txa" crossorigin="anonymous"></script>
@@ -77,14 +77,68 @@
 <body>
   <div class = "container">
     <button id="login">Login with Google</button><button id="logout">Logout</button><br/><br/>
-    <div class = "col-sm-4">
+
+    <nav class = "navbar navbar-default">
+      <div class = "container-fluid">
+        <div class = "navbar-header">
+          <button type = "button" class = "navbar-toggle" data-toggle = "collapse" data-target = "#navbar" aria-expanded = "true" aria-controls = "navbar">
+            <span class = "sr-only">Toggle navigation</span>
+            <span class = "icon-bar"></span>
+            <span class = "icon-bar"></span>
+            <span class = "icon-bar"></span>
+          </button>
+          <a id = "currentsession" class = "navbar-brand" href='#'>Session Name</a>
+        </div>
+        <div id = "navbar" class = "navbar-collapse collapse in" aria-expanded= "true">
+          <ul class = "nav navbar-nav">
+            <li class = "dropdown">
+              <a href = "#" class = "dropdown-toggle" data-toggle = "dropdown" role = "button" aria-haspopup = "true" aria-expanded = "false">
+                <span class = "caret"></span>
+              </a>
+              <ul id = "sessionlist" class = "dropdown-menu">
+                <li>
+                  <a href="#">Session X1</a>
+                </li>
+                <li role = "separator" class = "divider"></li>
+                <li>
+                  <a href="#">Session X2</a>
+                </li>
+                <li role = "separator" class = "divider"></li>
+                <li>
+                  <a href="#">Session X3</a>
+                </li>
+              </ul>
+            </li>
+          </ul>
+          <ul class = "nav navbar-nav navbar-right">
+            <li>
+                <a id = "managesessions" href="#">Manage Sessions</a>
+            </li>
+          </ul>
+        </div>
+      </div>
+    </nav>
+
+    <div class = "col-sm-12">
       <div id = "sessionall" class = "panel panel-default">
         <div id = "sessionhead" class = "panel panel-head">
+          <h2>Manage Sessions</h2>
           <input id="session" type="text" class = "form-control" placeholder="Session Name"><br/>
           <button id="create_session" class = "btn btn-primary">Create Session</button><br/>
         </div>
         <div class = "panel panel-body">
           <div id="sessions"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class = "col-sm-8">
+      <div id = "padall" class = "panel panel-default">
+        <div id = "padhead" class = "panel panel-head">
+          <h2 class = "panel-title">Code</h2>
+        </div>
+        <div class = "panel panel-body">
+          <div class="firepad CodeMirror" id="firepad"></div>
         </div>
       </div>
     </div>
@@ -97,17 +151,6 @@
         </div>
         <div class = "panel panel-body">
           <div id="results"></div>
-        </div>
-      </div>
-    </div>
-    
-    <div class = "col-sm-4">
-      <div id = "padall" class = "panel panel-default">
-        <div id = "padhead" class = "panel panel-head">
-          <h2 class = "panel-title">Code</h2>
-        </div>
-        <div class = "panel panel-body">
-          <div class="firepad CodeMirror" id="firepad"></div>
         </div>
       </div>
     </div>
@@ -135,10 +178,15 @@
     var firePadInput = document.querySelector('#firepad');
     var sessionInput = document.querySelector('#session');
     var sessionButton = document.querySelector('#create_session');
-    var sessionall = document.querySelector('#sessionall')
-    var postall = document.querySelector('#postall')
-    var padall = document.querySelector('#padall')
+    var sessionall = document.querySelector('#sessionall');
+    var postall = document.querySelector('#postall');
+    var padall = document.querySelector('#padall');
 
+    var currentsession = document.querySelector('#currentsession');
+    var sessionlist = document.querySelector('#sessionlist');
+    var managesessions = document.querySelector('#managesessions');
+    var navbar = document.querySelector('.navbar');
+    var selectedSessionName  = null;
 
     var username = null;
     var email = null;
@@ -152,6 +200,7 @@
     var invited_uid = null;
     var invited_session = null;
 
+
     postall.style.display = "none";
     postButton.style.display = "none";
     textInput.style.display = "none";
@@ -162,6 +211,7 @@
     sessionall.style.display = "none";
     sessionButton.style.display = "none";
     sessionInput.style.display = "none";
+    navbar.style.display = "none";
 
     logoutButton.style.display = "none";
     logoutButton.disabled = true;
@@ -181,6 +231,7 @@
     sessionButton.addEventListener("click", function() {
       var sessionName = sessionInput.value;
       var sessionOwner = username;
+
       // A post entry.
       var postData = {
         name: sessionName,
@@ -298,7 +349,90 @@
     }
 
     /** Function to add a data listener **/
+    var startListeningForSessionsOnNavBar = function() {
+      firebase.database().ref(uid+'/sessions/').orderByKey().limitToLast(4).on('value', function(snapshot) {
+        //Empty current list of sessions
+        sessionlist.innerHTML = "";
+        snapshot.forEach(function(childSnapshot) {
+          //create necessary list
+          var sessionListElement = document.createElement("li");
+          var sessionAElement = document.createElement("a");
+          sessionAElement.href = "#";
+          sessionAElement.innerHTML = childSnapshot.val().name;
+          //to do: add listener for selection of each
+          sessionAElement.addEventListener ("click", function() {
+            msg = childSnapshot.val();
+            //View chat and pad that specifically update the current session
+            //set variable with the current session id
+            session_id = childSnapshot.getKey();
+
+            //set sessionname at global scope
+            selectedSessionName = msg.name;
+            //set session name on navbar
+            currentsession.innerHTML = selectedSessionName;
+            //start listening for list of sessions i.e. NavBar
+            startListeningForSessionsOnNavBar();
+            
+            //show chat and pad
+            postall.style.display = "block";
+            postButton.style.display = "block";
+            textInput.style.display = "block";
+            padall.style.display = "block";
+            firePadInput.style.display = "block";
+
+            //hide session interface
+            sessionall.style.display = "none";
+
+            //show navbar with current session name, invite link, button to go back to sessions and drop down of all sessions
+
+            //Start listening to relevant info
+            startListeningForChats();
+
+            /*** FIREPAD INIT ***/
+            // Get Firebase Database reference.
+            var firepadRef = firebase.database().ref(uid+'/sessions/'+session_id+'/code/');
+
+            //clear firepad
+            document.getElementById("firepad").innerHTML = "";
+
+            // Create CodeMirror (with lineWrapping on).
+            var codeMirror = CodeMirror(document.getElementById('firepad'), {
+                lineNumbers: true,
+                mode: 'javascript'
+              });
+
+            // Create Firepad (with rich text toolbar and shortcuts enabled).
+            var firepad = Firepad.fromCodeMirror(firepadRef, codeMirror, {
+                //richTextShortcuts: true,
+                //richTextToolbar: true,
+                //defaultText: 'Hello, World!'
+              });
+          });
+          sessionListElement.appendChild(sessionAElement);
+
+          //separator list element
+          var sessionSeparatorListElement = document.createElement("li");
+          sessionSeparatorListElement.className = "divider";
+          sessionSeparatorListElement.setAttribute("role", "separator");
+
+          sessionlist.appendChild(sessionListElement);
+          sessionlist.appendChild(sessionSeparatorListElement);
+        });
+      });
+    };
+
+    /** Function to add a data listener **/
     var startListeningForSessions = function() {
+      //show chat and pad
+      postall.style.display = "none";
+      postButton.style.display = "none";
+      textInput.style.display = "none";
+      padall.style.display = "none";
+      firePadInput.style.display = "none";
+      //hide session interface
+      sessionall.style.display = "block";
+      navbar.style.display = "none";
+
       firebase.database().ref(uid+'/sessions/').orderByKey().limitToLast(4).on('value', function(snapshot) {
 
         //clear list before filling it again
@@ -330,6 +464,16 @@
             //View chat and pad that specifically update the current session
             //set variable with the current session id
             session_id = childSnapshot.getKey();
+
+            //set sessionname at global scope
+            selectedSessionName = msg.name;
+            //set session name on navbar
+            currentsession.innerHTML = selectedSessionName;
+            //start listening for list of sessions i.e. NavBar
+
+            //show navbar
+            navbar.style.display = "block";
+            startListeningForSessionsOnNavBar();
             
             //show chat and pad
             postall.style.display = "block";
@@ -337,6 +481,11 @@
             textInput.style.display = "block";
             padall.style.display = "block";
             firePadInput.style.display = "block";
+
+            //hide session interface
+            sessionall.style.display = "none";
+
+            //show navbar with current session name, invite link, button to go back to sessions and drop down of all sessions
 
             //Start listening to relevant info
             startListeningForChats();
@@ -429,27 +578,30 @@
         });
       });
       //Add listener to the posting of chats
-            postButton.addEventListener("click", function() {
+      postButton.addEventListener("click", function() {
+        var msgUser = email;//username;
+        var msgText = textInput.value;
+        // A post entry.
+        var postData = {
+          username: msgUser,
+          text: msgText,
+        };
+        console.log("POSTING... Current UID: "+uid)
+        // Get a key for a new Post.
+        var newPostKey = firebase.database().ref(uid+'/sessions/'+session_id).child('post').push().key;
 
-              var msgUser = email;//username;
-              var msgText = textInput.value;
-              // A post entry.
-              var postData = {
-                username: msgUser,
-                text: msgText,
-              };
-              console.log("POSTING... Current UID: "+uid)
-              // Get a key for a new Post.
-              var newPostKey = firebase.database().ref(uid+'/sessions/'+session_id).child('post').push().key;
-
-              // Write the new post's data simultaneously in the posts list and the user's post list.
-              var updates = {};
-              updates[uid+'/sessions/'+session_id+'/post/' + newPostKey] = postData;
-
-              var promise = firebase.database().ref().update(updates);
-              textInput.value = "";
-              console.log(promise)
-            });
+        // Write the new post's data simultaneously in the posts list and the user's post list.
+        var updates = {};
+        updates[uid+'/sessions/'+session_id+'/post/' + newPostKey] = postData;
+        var promise = firebase.database().ref().update(updates);
+        textInput.value = "";
+        console.log(promise)
+      });
+      managesessions.addEventListener ("click", function() {
+        //show first page i.e start listening to sessions
+        startListeningForSessions();
+        //startListeningForSessions();
+      });
     }
 
 /** Function to add a data listener **/
@@ -466,7 +618,6 @@
           
         var msgTextElement = document.createElement("p");
         msgTextElement.textContent = msg.group.email;
-
             
         //show chat and pad
         postall.style.display = "block";
